@@ -1,0 +1,215 @@
+<!-- <!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>NexMed AI | Clinical Pipeline</title>
+    <link rel="stylesheet" href="style.css">
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;800&display=swap" rel="stylesheet">
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1 class="logo">NexMed<span>AI</span></h1>
+            <div class="engine-toggle">
+                <i data-lucide="cpu"></i>
+                <select id="modelChoice">
+                    <option value="Groq">Cloud (Groq)</option>
+                    <option value="Local">Local (Qwen/Gemma)</option>
+                </select>
+            </div>
+        </header>
+
+        <main>
+            <section class="upload-section card">
+                <div class="drop-zone" id="dropZone">
+                    <i data-lucide="upload-cloud" class="icon-lg"></i>
+                    <p>Drag & drop X-ray or <strong>Browse</strong></p>
+                    <input type="file" id="fileInput" hidden>
+                </div>
+                <div id="imagePreviewContainer" class="hidden">
+                    <img id="imagePreview" src="" alt="X-ray Preview">
+                </div>
+            </section>
+
+            <div class="action-bar">
+                <button id="extractBtn" class="btn btn-primary" disabled>
+                    <i data-lucide="scan-eye"></i> Start Feature Extraction
+                </button>
+                <button id="reasonBtn" class="btn btn-secondary" disabled>
+                    <i data-lucide="brain-circuit"></i> Start Reasoning
+                </button>
+            </div>
+
+            <section class="results-grid">
+                <div class="card result-card">
+                    <h3><i data-lucide="list-checks"></i> Extracted Features</h3>
+                    <div id="featuresOutput" class="content-area">Pending extraction...</div>
+                </div>
+                <div class="card result-card">
+                    <h3><i data-lucide="file-text"></i> Clinical Report</h3>
+                    <div id="reportOutput" class="content-area">Pending reasoning...</div>
+                </div>
+            </section>
+
+            <section id="gradCamContainer" class="card hidden">
+                <h3><i data-lucide="activity"></i> Grad-CAM Visual Grounding</h3>
+                <img id="gradCamImage" src="" alt="Heatmap">
+            </section>
+        </main>
+    </div>
+    <script src="script.js"></script>
+    <script>lucide.createIcons();</script>
+</body>
+</html> -->
+
+
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>NexMed AI | Clinical Diagnostic Pipeline</title>
+    <link rel="stylesheet" href="style.css">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;600;700;800&family=DM+Mono:wght@300;400;500&display=swap" rel="stylesheet">
+    <script src="https://unpkg.com/lucide@latest"></script>
+</head>
+<body>
+
+    <div class="noise-overlay"></div>
+
+    <div class="container">
+
+        <!-- HEADER -->
+        <header class="header">
+            <div class="brand">
+                <div class="brand-mark">NX</div>
+                <div class="brand-text">
+                    <span class="brand-name">NexMed<span class="brand-ai">AI</span></span>
+                    <span class="brand-sub">Clinical Diagnostic Pipeline v2.0</span>
+                </div>
+            </div>
+            <div class="header-right">
+                <div class="status-dot"></div>
+                <span class="status-label">SYSTEM READY</span>
+                <div class="engine-select">
+                    <i data-lucide="cpu" class="select-icon"></i>
+                    <select id="modelChoice">
+                        <option value="Groq">Cloud — Groq</option>
+                        <option value="Local">Local — Qwen / Gemma</option>
+                    </select>
+                </div>
+            </div>
+        </header>
+
+        <!-- DIVIDER -->
+        <div class="header-rule"></div>
+
+        <!-- MAIN GRID -->
+        <main class="main-grid">
+
+            <!-- LEFT COLUMN -->
+            <div class="col-left">
+
+                <!-- UPLOAD -->
+                <div class="panel upload-panel">
+                    <div class="panel-label">
+                        <i data-lucide="image" class="panel-icon"></i>
+                        INPUT / IMAGING
+                    </div>
+                    <div class="drop-zone" id="dropZone">
+                        <div class="drop-inner">
+                            <i data-lucide="upload-cloud" class="drop-icon"></i>
+                            <p class="drop-title">Drop X-ray here</p>
+                            <p class="drop-sub">DICOM · JPEG · PNG — up to 20 MB</p>
+                            <button class="btn-ghost" id="browseBtn">Browse Files</button>
+                        </div>
+                        <input type="file" id="fileInput" hidden accept="image/*">
+                    </div>
+                    <div id="imagePreviewContainer" class="preview-container hidden">
+                        <img id="imagePreview" src="" alt="X-ray Preview">
+                        <div class="preview-badge">
+                            <i data-lucide="check-circle-2"></i>
+                            <span id="previewLabel">Image Loaded</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- ACTIONS -->
+                <div class="action-stack">
+                    <button id="extractBtn" class="btn btn-primary" disabled>
+                        <span class="btn-num">01</span>
+                        <span class="btn-label">
+                            <i data-lucide="scan-eye"></i>
+                            Feature Extraction
+                        </span>
+                        <i data-lucide="arrow-right" class="btn-arrow"></i>
+                    </button>
+                    <button id="reasonBtn" class="btn btn-secondary" disabled>
+                        <span class="btn-num">02</span>
+                        <span class="btn-label">
+                            <i data-lucide="brain-circuit"></i>
+                            Clinical Reasoning
+                        </span>
+                        <i data-lucide="arrow-right" class="btn-arrow"></i>
+                    </button>
+                </div>
+
+            </div>
+
+            <!-- RIGHT COLUMN -->
+            <div class="col-right">
+
+                <!-- EXTRACTED FEATURES -->
+                <div class="panel result-panel">
+                    <div class="panel-label">
+                        <i data-lucide="list-checks" class="panel-icon"></i>
+                        EXTRACTED FEATURES
+                        <span class="panel-tag" id="extractTag">PENDING</span>
+                    </div>
+                    <div id="featuresOutput" class="output-area">
+                        <span class="placeholder-text">Run Feature Extraction to populate findings.</span>
+                    </div>
+                </div>
+
+                <!-- CLINICAL REPORT -->
+                <div class="panel result-panel">
+                    <div class="panel-label">
+                        <i data-lucide="file-text" class="panel-icon"></i>
+                        CLINICAL REPORT
+                        <span class="panel-tag" id="reportTag">PENDING</span>
+                    </div>
+                    <div id="reportOutput" class="output-area">
+                        <span class="placeholder-text">Run Clinical Reasoning to generate report.</span>
+                    </div>
+                </div>
+
+                <!-- GRAD-CAM -->
+                <div class="panel" id="gradCamContainer" style="display:none;">
+                    <div class="panel-label">
+                        <i data-lucide="activity" class="panel-icon"></i>
+                        GRAD-CAM / VISUAL GROUNDING
+                        <span class="panel-tag panel-tag--live">LIVE</span>
+                    </div>
+                    <img id="gradCamImage" src="" alt="Heatmap" class="gradcam-img">
+                </div>
+
+            </div>
+        </main>
+
+        <!-- FOOTER -->
+        <footer class="footer">
+            <span>NexMed AI © 2026 — Ishn Narayan</span>
+            <span>For research use only. Not a medical device.</span>
+        </footer>
+
+    </div>
+
+    <script src="script.js"></script>
+    <script>lucide.createIcons();</script>
+</body>
+</html>

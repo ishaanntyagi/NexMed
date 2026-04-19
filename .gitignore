@@ -1,0 +1,78 @@
+# Virtual Environments
+venv_gpu/
+venv_tweak/
+venv/
+env/
+ENV/
+.venv/
+
+# Python cache
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+
+# Jupyter Notebook
+.ipynb_checkpoints/
+*.ipynb_checkpoints
+
+# Environment variables / secrets
+.env
+.env.local
+.env.*.local
+*.env
+
+# Model files / large binaries (HuggingFace, weights, etc.)
+qwen3.5_2b_hf/
+*.bin
+*.safetensors
+*.pt
+*.pth
+*.ckpt
+*.h5
+*.onnx
+*.gguf
+*.msgpack
+
+# HuggingFace cache
+.cache/
+huggingface/
+
+# Results / outputs (optional — remove if you want to track these)
+tweak_results/
+
+# Data files (optional — remove if your data is small and should be tracked)
+data.jsonl
+*.csv
+*.tsv
+*.parquet
+
+# Distribution / packaging
+build/
+dist/
+*.egg-info/
+*.egg
+
+# IDE / Editor
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
+logs/
+
+# OS
+.DS_Store
+desktop.ini
+
+# Testing / coverage
+.pytest_cache/
+.coverage
+htmlcov/
+.tox/
