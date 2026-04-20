@@ -1,0 +1,362 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>NexMed AI · Consultation Intake</title>
+    <link rel="stylesheet" href="stylerag.css">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;600;700;800&family=DM+Mono:wght@300;400;500&display=swap" rel="stylesheet">
+    <script src="https://unpkg.com/lucide@latest"></script>
+</head>
+<body>
+
+    <div class="noise-overlay"></div>
+
+    <div class="app">
+
+        <!-- ═══ SIDEBAR ═══ -->
+        <aside class="sidebar">
+            <div class="sidebar-brand">
+                <div class="brand-mark">NX</div>
+                <div class="brand-text">
+                    <span class="brand-name">NexMed<span class="brand-ai">AI</span></span>
+                    <span class="brand-sub">RAG Consultation</span>
+                </div>
+            </div>
+
+            <div class="sidebar-section">
+                <span class="sidebar-label">Actions</span>
+                <button class="sidebar-btn is-primary" id="newPatientBtn">
+                    <i data-lucide="user-plus"></i>
+                    New Patient
+                </button>
+                <button class="sidebar-btn" id="historyBtn">
+                    <i data-lucide="clock"></i>
+                    Consultation History
+                </button>
+            </div>
+
+            <div class="sidebar-section">
+                <span class="sidebar-label">AI Engine</span>
+                <div class="engine-select">
+                    <i data-lucide="cpu"></i>
+                    <select id="modelChoice">
+                        <option value="Groq">Cloud — Groq</option>
+                        <option value="Local">Local — Ollama</option>
+                    </select>
+                </div>
+            </div>
+
+            <div style="flex: 1;"></div>
+
+            <div class="sidebar-section">
+                <span class="sidebar-label">Module Status</span>
+                <div class="context-badge">
+                    <i data-lucide="database"></i>
+                    LOCAL STORAGE
+                </div>
+                <span style="font-family: var(--mono); font-size: 9.5px; color: var(--text-3); letter-spacing: 0.06em; line-height: 1.6; padding: 0 4px;">
+                    Backend not yet connected. All data remains in browser.
+                </span>
+            </div>
+        </aside>
+
+        <!-- ═══ MAIN ═══ -->
+        <main class="main">
+
+            <!-- Topbar -->
+            <div class="topbar">
+                <div class="topbar-title">
+                    <span class="topbar-h">Patient Intake</span>
+                    <span class="topbar-sub">Initialize consultation context</span>
+                </div>
+                <div class="topbar-right">
+                    <div class="status-pill">
+                        <div class="status-dot"></div>
+                        READY FOR INPUT
+                    </div>
+                </div>
+            </div>
+
+            <div class="intake-wrap">
+
+                <div class="intake-header">
+                    <h1 class="intake-title">Build Patient Context</h1>
+                    <p class="intake-desc">
+                        Provide clinical details to initialize the AI consultation session. 
+                        The Q&A agent will use this context alongside retrieved knowledge 
+                        to answer follow-up questions about diagnosis, management, and care planning.
+                    </p>
+                </div>
+
+                <form id="intakeForm" autocomplete="off">
+
+                    <!-- ─── Section 1: Demographics ─── -->
+                    <section class="form-section">
+                        <div class="form-section-head">
+                            <i data-lucide="user"></i>
+                            Patient Demographics
+                        </div>
+                        <div class="form-grid">
+                            <div class="field">
+                                <label class="field-label" for="patientName">
+                                    Patient Name / ID <span class="req">*</span>
+                                </label>
+                                <input type="text" id="patientName" class="field-input" required>
+                            </div>
+                            <div class="field">
+                                <label class="field-label" for="age">
+                                    Age <span class="req">*</span>
+                                </label>
+                                <input type="number" id="age" class="field-input" min="0" max="120" required>
+                            </div>
+                            <div class="field">
+                                <label class="field-label" for="sex">
+                                    Sex <span class="req">*</span>
+                                </label>
+                                <select id="sex" class="field-select" required>
+                                    <option value="">Select</option>
+                                    <option>Male</option>
+                                    <option>Female</option>
+                                    <option>Other</option>
+                                </select>
+                            </div>
+                            <div class="field">
+                                <label class="field-label" for="handedness">Handedness</label>
+                                <select id="handedness" class="field-select">
+                                    <option value="">Not specified</option>
+                                    <option>Right</option>
+                                    <option>Left</option>
+                                    <option>Ambidextrous</option>
+                                </select>
+                            </div>
+                        </div>
+                    </section>
+
+                    <!-- ─── Section 2: Injury Context ─── -->
+                    <section class="form-section">
+                        <div class="form-section-head">
+                            <i data-lucide="alert-triangle"></i>
+                            Injury Context
+                        </div>
+                        <div class="form-grid">
+                            <div class="field field-full">
+                                <label class="field-label" for="mechanism">
+                                    Mechanism of Injury <span class="req">*</span>
+                                </label>
+                                <input type="text" id="mechanism" class="field-input"
+                                       placeholder="e.g., fall on outstretched hand, direct blow, twisting force" required>
+                            </div>
+                            <div class="field">
+                                <label class="field-label" for="timeSince">
+                                    Time Since Injury <span class="req">*</span>
+                                </label>
+                                <select id="timeSince" class="field-select" required>
+                                    <option value="">Select</option>
+                                    <option>&lt;1 hour</option>
+                                    <option>1–6 hours</option>
+                                    <option>6–24 hours</option>
+                                    <option>1–3 days</option>
+                                    <option>3–7 days</option>
+                                    <option>&gt;1 week</option>
+                                </select>
+                            </div>
+                            <div class="field">
+                                <label class="field-label" for="site">
+                                    Suspected Fracture Site <span class="req">*</span>
+                                </label>
+                                <select id="site" class="field-select" required>
+                                    <option value="">Select</option>
+                                    <option>Upper limb</option>
+                                    <option>Lower limb</option>
+                                    <option>Spine</option>
+                                    <option>Pelvis</option>
+                                    <option>Ribs</option>
+                                    <option>Multiple sites</option>
+                                    <option>Unknown</option>
+                                </select>
+                            </div>
+                            <div class="field">
+                                <label class="field-label" for="weightBearing">
+                                    Weight-bearing Status <span class="req">*</span>
+                                </label>
+                                <select id="weightBearing" class="field-select" required>
+                                    <option value="">Select</option>
+                                    <option>Able</option>
+                                    <option>Partial</option>
+                                    <option>Unable</option>
+                                    <option>Not applicable</option>
+                                </select>
+                            </div>
+                            <div class="field">
+                                <label class="field-label">
+                                    Pain Level <span class="req">*</span>
+                                </label>
+                                <div class="slider-field">
+                                    <div class="slider-top">
+                                        <span class="slider-value" id="painDisplay">5</span>
+                                        <span class="slider-label">0 – 10 scale</span>
+                                    </div>
+                                    <input type="range" id="painLevel" class="slider" min="0" max="10" value="5">
+                                </div>
+                            </div>
+                        </div>
+                    </section>
+
+                    <!-- ─── Section 3: Clinical Symptoms ─── -->
+                    <section class="form-section">
+                        <div class="form-section-head">
+                            <i data-lucide="stethoscope"></i>
+                            Clinical Symptoms
+                        </div>
+                        <div class="form-grid">
+                            <div class="field field-full">
+                                <label class="field-label" for="complaint">
+                                    Primary Complaint <span class="req">*</span>
+                                </label>
+                                <textarea id="complaint" class="field-textarea"
+                                          placeholder="Describe presenting symptoms, pain characteristics, and functional limitations" required></textarea>
+                            </div>
+
+                            <label class="check-field">
+                                <input type="checkbox" id="deformity">
+                                <span>Visible Deformity</span>
+                            </label>
+                            <label class="check-field">
+                                <input type="checkbox" id="openWound">
+                                <span>Open Wound / Skin Breach</span>
+                            </label>
+
+                            <label class="check-field">
+                                <input type="checkbox" id="neurovascular" data-toggle="neuroDetail">
+                                <span>Neurovascular Symptoms</span>
+                            </label>
+                            <label class="check-field">
+                                <input type="checkbox" id="priorFracture" data-toggle="priorDetail">
+                                <span>Prior Fracture at Site</span>
+                            </label>
+
+                            <div class="conditional-field" id="neuroDetail">
+                                <label class="field-label" for="neuroText">
+                                    Describe neurovascular findings
+                                </label>
+                                <input type="text" id="neuroText" class="field-input"
+                                       placeholder="e.g., numbness in median nerve distribution, delayed capillary refill">
+                            </div>
+
+                            <div class="conditional-field" id="priorDetail">
+                                <label class="field-label" for="priorText">
+                                    Describe prior fracture history
+                                </label>
+                                <input type="text" id="priorText" class="field-input"
+                                       placeholder="e.g., distal radius fracture 2022, ORIF performed">
+                            </div>
+                        </div>
+                    </section>
+
+                    <!-- ─── Section 4: Facility ─── -->
+                    <section class="form-section">
+                        <div class="form-section-head">
+                            <i data-lucide="building-2"></i>
+                            Facility & Physician
+                        </div>
+                        <div class="form-grid">
+                            <div class="field">
+                                <label class="field-label" for="hospital">
+                                    Hospital / Facility <span class="req">*</span>
+                                </label>
+                                <input type="text" id="hospital" class="field-input" required>
+                            </div>
+                            <div class="field">
+                                <label class="field-label" for="unit">Unit / Ward</label>
+                                <input type="text" id="unit" class="field-input"
+                                       placeholder="e.g., Emergency, Orthopedic Ward 3B">
+                            </div>
+                            <div class="field field-full">
+                                <label class="field-label" for="physician">
+                                    Treating Physician <span class="req">*</span>
+                                </label>
+                                <input type="text" id="physician" class="field-input" required>
+                            </div>
+                        </div>
+                    </section>
+
+                    <!-- ─── Section 5: Consultation Settings ─── -->
+                    <section class="form-section">
+                        <div class="form-section-head">
+                            <i data-lucide="settings-2"></i>
+                            Consultation Settings
+                        </div>
+                        <div class="form-grid">
+                            <div class="field">
+                                <label class="field-label" for="knowledgeBase">
+                                    Knowledge Base <span class="req">*</span>
+                                </label>
+                                <select id="knowledgeBase" class="field-select" required>
+                                    <option value="general">General Orthopedic</option>
+                                    <option value="pediatric">Pediatric Fractures</option>
+                                    <option value="trauma">Trauma Protocols</option>
+                                </select>
+                                <span class="field-hint">Determines which corpus is retrieved for grounded answers.</span>
+                            </div>
+                            <div class="field">
+                                <label class="field-label">X-ray Image (Optional)</label>
+                                <div class="image-dropzone" id="imageDropzone">
+                                    <i data-lucide="upload-cloud"></i>
+                                    <p>Drop or click to upload</p>
+                                    <span class="sub">JPEG · PNG — can also be attached in chat</span>
+                                    <input type="file" id="imageInput" accept="image/*" hidden>
+                                </div>
+                                <div class="image-preview-row" id="imagePreviewRow">
+                                    <img id="imagePreview" src="" alt="">
+                                    <div class="image-preview-info">
+                                        <span class="name" id="imageName"></span>
+                                        <span class="size" id="imageSize"></span>
+                                    </div>
+                                    <button type="button" class="image-remove" id="imageRemove" title="Remove">
+                                        <i data-lucide="x"></i>
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    </section>
+
+                    <!-- ─── Submit Bar ─── -->
+                    <div class="form-actions">
+                        <span class="form-meta" id="formMeta">0 of 11 required fields completed</span>
+                        <button type="submit" class="btn btn-primary" id="submitBtn" disabled>
+                            Begin Consultation
+                            <i data-lucide="arrow-right"></i>
+                        </button>
+                    </div>
+
+                </form>
+            </div>
+        </main>
+    </div>
+
+    <!-- ═══ HISTORY DRAWER ═══ -->
+    <div class="drawer-backdrop" id="drawerBackdrop"></div>
+    <aside class="drawer" id="historyDrawer">
+        <div class="drawer-head">
+            <span class="drawer-title">Consultation History</span>
+            <button class="drawer-close" id="drawerClose" title="Close">
+                <i data-lucide="x"></i>
+            </button>
+        </div>
+        <div class="drawer-body" id="historyBody">
+            <!-- populated by JS -->
+        </div>
+    </aside>
+
+    <!-- Toast -->
+    <div class="toast" id="toast">
+        <i data-lucide="check-circle-2"></i>
+        <span id="toastMsg">Saved.</span>
+    </div>
+
+    <script src="scriptrag.js" data-page="intake"></script>
+    <script>lucide.createIcons();</script>
+</body>
+</html>

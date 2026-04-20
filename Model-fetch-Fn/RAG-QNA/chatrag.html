@@ -1,0 +1,189 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>NexMed AI · Consultation</title>
+    <link rel="stylesheet" href="stylerag.css">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;600;700;800&family=DM+Mono:wght@300;400;500&display=swap" rel="stylesheet">
+    <script src="https://unpkg.com/lucide@latest"></script>
+</head>
+<body>
+
+    <div class="noise-overlay"></div>
+
+    <div class="app">
+
+        <!-- ═══ SIDEBAR ═══ -->
+        <aside class="sidebar">
+            <div class="sidebar-brand">
+                <div class="brand-mark">NX</div>
+                <div class="brand-text">
+                    <span class="brand-name">NexMed<span class="brand-ai">AI</span></span>
+                    <span class="brand-sub">Consultation Active</span>
+                </div>
+            </div>
+
+            <!-- Patient snapshot card -->
+            <div class="sidebar-section">
+                <span class="sidebar-label">Patient</span>
+                <div class="snapshot" id="patientSnapshot">
+                    <!-- populated by JS -->
+                </div>
+            </div>
+
+            <!-- Context indicators -->
+            <div class="sidebar-section">
+                <span class="sidebar-label">Context</span>
+                <div class="context-badge" id="ctxFields">
+                    <i data-lucide="list-checks"></i>
+                    <span>0 fields loaded</span>
+                </div>
+                <div class="context-badge" id="ctxImage" style="display:none;">
+                    <i data-lucide="image"></i>
+                    <span>Image attached</span>
+                </div>
+                <div class="context-badge" id="ctxKB">
+                    <i data-lucide="book-open"></i>
+                    <span>KB: General</span>
+                </div>
+            </div>
+
+            <!-- Actions -->
+            <div class="sidebar-section">
+                <span class="sidebar-label">Session</span>
+                <button class="sidebar-btn" id="viewIntakeBtn">
+                    <i data-lucide="file-text"></i>
+                    View Full Intake
+                </button>
+                <button class="sidebar-btn" id="exportBtn">
+                    <i data-lucide="download"></i>
+                    Export Transcript
+                </button>
+                <button class="sidebar-btn" id="historyBtn">
+                    <i data-lucide="clock"></i>
+                    History
+                </button>
+                <button class="sidebar-btn is-danger" id="newPatientBtn">
+                    <i data-lucide="user-plus"></i>
+                    New Patient
+                </button>
+            </div>
+
+            <div style="flex: 1;"></div>
+
+            <!-- Engine -->
+            <div class="sidebar-section">
+                <span class="sidebar-label">AI Engine</span>
+                <div class="engine-select">
+                    <i data-lucide="cpu"></i>
+                    <select id="modelChoice">
+                        <option value="Groq">Cloud — Groq</option>
+                        <option value="Local">Local — Ollama</option>
+                    </select>
+                </div>
+            </div>
+        </aside>
+
+        <!-- ═══ MAIN ═══ -->
+        <main class="main">
+
+            <!-- Topbar -->
+            <div class="topbar">
+                <div class="topbar-title">
+                    <span class="topbar-h" id="topbarPatient">Loading patient…</span>
+                    <span class="topbar-sub" id="topbarComplaint">—</span>
+                </div>
+                <div class="topbar-right">
+                    <div class="status-pill">
+                        <div class="status-dot"></div>
+                        CONSULTATION OPEN
+                    </div>
+                </div>
+            </div>
+
+            <!-- Chat stream -->
+            <div class="chat-wrap">
+                <div class="chat-stream" id="chatStream">
+                    <!-- populated by JS -->
+                </div>
+
+                <!-- Composer -->
+                <div class="composer">
+                    <!-- Suggested question chips -->
+                    <div class="suggested" id="suggested">
+                        <button class="chip" data-q="What is the triage urgency for this case?">Triage urgency?</button>
+                        <button class="chip" data-q="Recommend an initial management plan.">Management plan</button>
+                        <button class="chip" data-q="What are the surgical indicators I should evaluate?">Surgical indicators</button>
+                        <button class="chip" data-q="What is the expected healing timeline?">Healing timeline</button>
+                        <button class="chip" data-q="List red flags that warrant escalation.">Red flags</button>
+                    </div>
+
+                    <!-- Attachment preview -->
+                    <div class="composer-attachment" id="composerAttachment">
+                        <img id="attachThumb" src="" alt="">
+                        <span id="attachName">image.jpg</span>
+                        <button id="attachRemove" title="Remove">
+                            <i data-lucide="x"></i>
+                        </button>
+                    </div>
+
+                    <div class="composer-box">
+                        <textarea
+                            id="composerInput"
+                            class="composer-input"
+                            placeholder="Ask about diagnosis, management, follow-up, red flags…"
+                            rows="1"></textarea>
+                        <button class="composer-btn" id="attachBtn" title="Attach X-ray">
+                            <i data-lucide="paperclip"></i>
+                        </button>
+                        <input type="file" id="attachInput" accept="image/*" hidden>
+                        <button class="composer-btn composer-send" id="sendBtn" disabled title="Send (Ctrl+Enter)">
+                            <i data-lucide="send-horizontal"></i>
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <!-- ═══ HISTORY DRAWER ═══ -->
+    <div class="drawer-backdrop" id="drawerBackdrop"></div>
+    <aside class="drawer" id="historyDrawer">
+        <div class="drawer-head">
+            <span class="drawer-title">Consultation History</span>
+            <button class="drawer-close" id="drawerClose" title="Close">
+                <i data-lucide="x"></i>
+            </button>
+        </div>
+        <div class="drawer-body" id="historyBody">
+            <!-- populated by JS -->
+        </div>
+    </aside>
+
+    <!-- ═══ INTAKE MODAL ═══ -->
+    <div class="modal-backdrop" id="modalBackdrop">
+        <div class="modal">
+            <div class="modal-head">
+                <span class="modal-title">Patient Intake Record</span>
+                <button class="modal-close" id="modalClose" title="Close">
+                    <i data-lucide="x"></i>
+                </button>
+            </div>
+            <div class="modal-body" id="modalBody">
+                <!-- populated by JS -->
+            </div>
+        </div>
+    </div>
+
+    <!-- Toast -->
+    <div class="toast" id="toast">
+        <i data-lucide="check-circle-2"></i>
+        <span id="toastMsg">Saved.</span>
+    </div>
+
+    <script src="scriptrag.js" data-page="chat"></script>
+    <script>lucide.createIcons();</script>
+</body>
+</html>
