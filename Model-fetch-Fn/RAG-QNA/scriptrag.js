@@ -457,10 +457,26 @@
             const imgHtml = m.image?.dataUrl
                 ? `<img src="${esc(m.image.dataUrl)}" class="msg-image" alt="attached">`
                 : '';
+
+            // Citation chips (AI only, if present)
+            let citeHtml = '';
+            if (m.role === 'ai' && Array.isArray(m.citations) && m.citations.length) {
+                const chips = m.citations.map(c => {
+                    const preview = esc(c.chunk_preview || '');
+                    const file    = esc(c.file || 'source');
+                    return `<button class="cite-chip" data-preview="${preview}" title="${preview}">
+                                <i data-lucide="file-text"></i>
+                                <span>${file}</span>
+                            </button>`;
+                }).join('');
+                citeHtml = `<div class="cite-row">${chips}</div>`;
+            }
+
             return `
                 <div class="${cls}">
                     <span class="msg-label">${label}</span>
                     <div class="msg-body">${esc(m.content)}${imgHtml}</div>
+                    ${citeHtml}
                     <span class="msg-time">${esc(fmtTime(m.timestamp))}</span>
                 </div>`;
         };
@@ -548,49 +564,55 @@
                 </div>`);
             scrollToBottom();
 
-            // Simulate latency, produce honest stub reply
-            await new Promise(r => setTimeout(r, 700 + Math.random() * 600));
+            // Hit the backend
+            let reply = '';
+            let citations = [];
+            try {
+                const res = await fetch('/rag/ask', {
+                    method:  'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body:    JSON.stringify({
+                        question:       text,
+                        patient:        session.patient,
+                        knowledge_base: session.knowledgeBase,
+                        engine:         session.engine || 'Groq',
+                    }),
+                });
+                const data = await res.json();
+                if (!res.ok || data.error) {
+                    throw new Error(data.error || `Request failed (${res.status})`);
+                }
+                reply     = data.answer || '(empty response)';
+                citations = Array.isArray(data.citations) ? data.citations : [];
+            } catch (err) {
+                console.error(err);
+                reply = `⚠ Backend error: ${err.message || 'Could not reach /rag/ask.'}`;
+            }
 
-            const reply = buildStubReply(text, hadAttach);
             const typingEl = $('#typingMsg');
             typingEl?.remove();
 
-            const aiMsg = { role: 'ai', content: reply, timestamp: nowIso() };
+            const aiMsg = {
+                role: 'ai',
+                content: reply,
+                timestamp: nowIso(),
+                citations: citations,
+            };
             session.messages.push(aiMsg);
             saveActive(session);
             archiveSession(session);
             renderStream();
         };
 
+        // Delegated click: citation chips show their preview via toast
+        stream.addEventListener('click', (e) => {
+            const chip = e.target.closest('.cite-chip');
+            if (!chip) return;
+            const preview = chip.dataset.preview || 'No preview.';
+            toast(preview);
+        });
+
         sendBtn.addEventListener('click', send);
-
-        // --- Honest stub reply (backend not connected yet) ---
-        const buildStubReply = (query, hadImage) => {
-            const p = session.patient;
-            const fieldCount = Object.values(p).filter(v => v !== '' && v !== false && v != null).length;
-            const kb = kbLabel(session.knowledgeBase);
-
-            const lines = [
-                '▹ [Backend not yet connected — this is a UI stub response]',
-                '',
-                `Query received: "${query}"`,
-                '',
-                `Would process with:`,
-                `  • Engine: ${session.engine || 'Groq'}`,
-                `  • Knowledge base: ${kb}`,
-                `  • Patient context: ${fieldCount} fields loaded`,
-                `  • Site: ${p.site} · Mechanism: ${p.mechanism}`,
-                `  • Pain: ${p.painLevel}/10 · Weight-bearing: ${p.weightBearing}`,
-                hadImage ? `  • Image attached to this turn` : (session.image ? `  • Intake image in context` : `  • No image in context`),
-                '',
-                'Once the Flask backend is wired, this stub will be replaced by:',
-                '  1. Retrieval from the selected knowledge base',
-                '  2. Context-stuffed prompt (patient record + retrieved passages + this turn)',
-                '  3. Cloud or local LLM response',
-                '  4. Citations linking each claim to source passages.',
-            ];
-            return lines.join('\n');
-        };
 
         // --- Export transcript ---
         $('#exportBtn').addEventListener('click', () => {
