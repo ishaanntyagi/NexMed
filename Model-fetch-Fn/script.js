@@ -153,11 +153,72 @@ extractBtn.addEventListener('click', async () => {
     }
 });
 
+// ─── Feature row styling helpers ──────────────────────────
+
+// Detect fracture presence from the value string.
+// Returns 'yes' | 'no' | null (unknown / inconclusive / mixed).
+function detectFracturePresence(val) {
+    const s = String(val).toLowerCase().trim();
+    if (/^\s*yes\b/.test(s) || /\bpresent\b/.test(s)) return 'yes';
+    if (/^\s*no\b/.test(s)  || /\babsent\b/.test(s) || /no\s+fracture/.test(s)) return 'no';
+    return null;
+}
+
+// Extract a 0-100 percentage from the confidence string.
+// Returns { num: Number, rest: String } or null if we can't find one.
+function parseConfidence(val) {
+    const s = String(val);
+    const m = s.match(/(\d{1,3})\s*%/);
+    if (!m) return null;
+    const num = Math.max(0, Math.min(100, parseInt(m[1], 10)));
+    // Everything that isn't the "NN%" token, cleaned up
+    const rest = s.replace(m[0], '').replace(/^[\s,.\-–—:]+/, '').trim();
+    return { num, rest };
+}
+
+// Build the HTML for a single feature value based on key context.
+function renderFeatureValue(key, val) {
+    const k = String(key).toUpperCase();
+
+    // FRACTURE row
+    if (k.includes('FRACTURE')) {
+        const state = detectFracturePresence(val);
+        if (state === 'yes') {
+            return `<div class="feature-val is-fracture-yes"><span class="val-pill">${esc(val)}</span></div>`;
+        }
+        if (state === 'no') {
+            return `<div class="feature-val is-fracture-no"><span class="val-pill">${esc(val)}</span></div>`;
+        }
+        // Inconclusive or weird — render plainly
+        return `<div class="feature-val">${esc(val)}</div>`;
+    }
+
+    // CONFIDENCE row
+    if (k.includes('CONFIDENCE')) {
+        const parsed = parseConfidence(val);
+        if (parsed) {
+            let tier = 'conf-mid';
+            if (parsed.num >= 85) tier = 'conf-high';
+            else if (parsed.num < 70) tier = 'conf-low';
+            const rest = parsed.rest ? `<span class="conf-note">${esc(parsed.rest)}</span>` : '';
+            return `
+                <div class="feature-val is-confidence ${tier}">
+                    <span class="conf-num">${parsed.num}%</span>
+                    ${rest}
+                </div>`;
+        }
+        return `<div class="feature-val">${esc(val)}</div>`;
+    }
+
+    // Default
+    return `<div class="feature-val">${esc(val)}</div>`;
+}
+
 function renderFeatures(features) {
     const lines = Object.entries(features).map(([k, v]) => `
         <div class="feature-line">
             <span class="feature-key">${esc(k)}</span>
-            <span class="feature-val">${esc(v)}</span>
+            ${renderFeatureValue(k, v)}
         </div>`).join('');
     featuresOutput.innerHTML = lines;
 }

@@ -17,7 +17,7 @@ load_dotenv()
 
 
 # ==========================================================
-# PHASE 1 PROMPT - VISION (The Eyes)
+# PHASE 1 PROMPT - VISION
 # ==========================================================
 CLINICAL_EXTRACTION_PROMPT = """
 Analyze this medical X-ray with extreme precision for a downstream Reasoning LLM. 
@@ -29,14 +29,14 @@ Extract and list the following attributes in a structured, technical format:
 5. DISPLACEMENT: Mention percentage and direction (e.g., 2mm dorsal displacement).
 6. ANGULATION: Degree and direction if visible.
 7. SOFT TISSUE: Note any significant swelling or joint effusion.
-8. CONFIDENCE SCORE: 0-100% based on image clarity.
+8. CONFIDENCE SCORE: 0-100% Also state , based on comparision of both models.
 
 Provide ONLY the technical extraction. Do not provide patient advice.
 """
 
 
 # ==========================================================
-# PHASE 2 PROMPT - REASONING (The Brain)
+# PHASE 2 PROMPT - REASONING
 # ==========================================================
 REASONING_SYSTEM_PROMPT = """
 ACT AS: A Consultant Orthopedic Surgeon.
@@ -61,6 +61,7 @@ STRICT FORMATTING RULES:
 - Do NOT write paragraphs. Do NOT chain bullets together with " - " inline.
 - Each bullet is one standalone sentence. Keep them short and clinical.
 - Do NOT use markdown asterisks or bold.
+- Do NOT repeat the section title inside the body.
 
 TONE: Decisive, professional, and strictly data-driven.
 """
@@ -154,7 +155,7 @@ def nexmed_pipeline(image_path, vision_choice="Groq", reasoning_choice="Groq"):
 
 
 # ==========================================================
-# MARKDOWN -> DICT PARSERS
+# PARSERS
 # ==========================================================
 FEATURE_KEYS = [
     ("BONE",         r"BONE\(?S?\)?\s*INVOLVED"),
@@ -184,60 +185,63 @@ def _clean_value(text):
 
 
 def _prettify_body(text):
-    """
-    AGGRESSIVELY break run-on prose into one-sentence-per-line bullets.
-
-    The LLM often emits:
-        "Point A. - Point B. - Point C. --- 2. NEXT SECTION..."
-    We want:
-        "- Point A.
-         - Point B.
-         - Point C."
-
-    Strategy:
-      1. Strip markdown noise (**, ---).
-      2. Split on any ' - ' / ' — ' / ' • ' that looks like a bullet separator.
-      3. Also split on sentence-ending period + capital-letter boundary as a
-         fallback when the LLM uses no dashes at all.
-      4. Normalize every resulting line into "- <sentence>".
-    """
-    # 1. Kill markdown noise
+    """Break run-on prose into one bullet per line."""
     text = re.sub(r"\*+", "", text)
-    text = re.sub(r"-{3,}", " ", text)          # "---" dividers -> space
+    text = re.sub(r"-{3,}", " ", text)
     text = re.sub(r"[ \t]+", " ", text).strip()
 
-    # 2. Break inline bullets. Any dash/bullet with whitespace on BOTH sides
-    #    that sits in the middle of text is almost certainly a list separator.
+    # Break inline bullet separators
     text = re.sub(r"(?<=\S)\s+[-–—•]\s+(?=\S)", "\n", text)
 
-    # 3. Also break "Sentence. Next sentence." into two lines when the LLM
-    #    refuses to use dashes at all. Requires a period followed by a space
-    #    and a capital letter (not an abbreviation like "e.g.").
+    # Break "Sentence. Next sentence." on capital-letter boundary
     text = re.sub(r"(?<=[a-z0-9\]\)])\.\s+(?=[A-Z][a-z])", ".\n", text)
 
-    # 4. Break "Label: value. Next label: value." patterns that the LLM
-    #    sometimes chains (e.g., "Displacement: None. Angulation: 5°.")
+    # Break chained clauses at semicolons
     text = re.sub(r";\s+", "\n", text)
 
-    # Normalize each line -> prefix with "- "
     lines = [ln.strip(" -•\t") for ln in text.split("\n")]
     lines = [ln for ln in lines if ln]
 
-    # Drop duplicate "SECTION NAME:" echoes at the start of a body
-    # (happens when LLM repeats the header inside its own content)
+    # Drop naked section-title echoes (e.g., "CLINICAL SYNTHESIS:")
     lines = [ln for ln in lines if not re.match(r"^[A-Z][A-Z\s\.\/\-]{4,}:?\s*$", ln)]
 
     if not lines:
         return ""
 
-    # If the body is short (1 sentence), return plain paragraph (no bullet)
     if len(lines) == 1 and len(lines[0]) < 140:
         return lines[0]
 
     return "\n".join(f"- {ln}" for ln in lines)
 
 
+def _strip_trailing_header_leak(body, schema, current_label):
+    """
+    If an LLM's body for section A has run past the "1. B:" header of
+    section B and included B's bullets inline, chop the leak off.
+    Returns (clean_body_for_A, leaked_text_for_downstream) where leaked_text
+    still contains the "N. B:" header so the outer split can recapture it.
+    """
+    for i, (label, pat) in enumerate(schema):
+        if label == current_label:
+            continue
+        # Match a subsequent header anywhere in the body
+        leak_re = re.compile(
+            rf"(?i)(?:(?<=^)|(?<=[\s.\]\)\-—–]))"
+            rf"(?:\d+\s*[\.\)]\s*)?\*{{0,2}}\s*(?:{pat})\s*\*{{0,2}}\s*[:\-–—]?"
+        )
+        m = leak_re.search(body)
+        if m:
+            # Keep everything before the leak for the current section,
+            # return the leaked slice so the caller can re-parse it.
+            before = body[:m.start()].rstrip(" -–—•:,;\t\n")
+            leak   = body[m.start():]
+            return before, leak
+    return body, ""
+
+
 def parse_sections(raw_text, schema, prettify=False):
+    """Robust section splitter with leak recovery and empty-section pruning."""
+
     combined = "|".join(f"(?P<k{i}>{pat})" for i, (_, pat) in enumerate(schema))
     header_pattern = re.compile(
         rf"(?i)(?:(?<=^)|(?<=[\s.\]\)\-—–]))"
@@ -248,33 +252,51 @@ def parse_sections(raw_text, schema, prettify=False):
         rf"\s*[:\-–—]?\s*"
     )
 
+    # Collect all header matches, filter obvious false positives where the
+    # "header" is actually just the section name appearing inside prose
+    # (allowed) but not at a plausible section boundary.
     matches = list(header_pattern.finditer(raw_text))
+
+    # De-duplicate: for the same label, keep only the FIRST occurrence that
+    # looks like a real section boundary. The first occurrence is almost
+    # always the intended header; later occurrences tend to be the LLM
+    # echoing the title inside its own content.
+    seen = set()
+    deduped = []
+    for m in matches:
+        label = None
+        for i, (lbl, _pat) in enumerate(schema):
+            if m.group(f"k{i}"):
+                label = lbl
+                break
+        if label is None or label in seen:
+            continue
+        seen.add(label)
+        deduped.append((m, label))
+
     result = {}
 
-    if not matches:
+    if not deduped:
         if schema:
-            body = _clean_value(raw_text) or "No data."
-            result[schema[0][0]] = _prettify_body(body) if prettify else body
-        for label, _ in schema:
-            result.setdefault(label, "—")
-        return {label: result[label] for label, _ in schema}
+            body = _clean_value(raw_text) or ""
+            val  = _prettify_body(body) if prettify else body
+            if val:
+                result[schema[0][0]] = val
+        return result
 
-    for idx, match in enumerate(matches):
-        matched_label = None
-        for i, (label, _pat) in enumerate(schema):
-            if match.group(f"k{i}"):
-                matched_label = label
-                break
-        if matched_label is None:
-            continue
-
+    for idx, (match, matched_label) in enumerate(deduped):
         start = match.end()
-        end = matches[idx + 1].start() if idx + 1 < len(matches) else len(raw_text)
+        end = deduped[idx + 1][0].start() if idx + 1 < len(deduped) else len(raw_text)
         body = raw_text[start:end].strip()
 
         body = re.sub(r"\*+", "", body)
         body = re.sub(r"^[\s\-\:•]+", "", body)
         body = body.strip()
+
+        # Leak recovery: if a downstream header snuck into this body
+        # (and it WASN'T already caught by dedupe above), chop it.
+        cleaned, _leak = _strip_trailing_header_leak(body, schema, matched_label)
+        body = cleaned
 
         if prettify:
             body = _prettify_body(body)
@@ -282,24 +304,27 @@ def parse_sections(raw_text, schema, prettify=False):
             body = re.sub(r"\s+", " ", body).strip()
 
         if not body:
-            body = "—"
+            continue  # drop empty sections entirely — no "—" placeholders
 
-        if matched_label in result and len(result[matched_label]) >= len(body):
-            continue
         result[matched_label] = body
 
-    for label, _ in schema:
-        result.setdefault(label, "—")
-
-    return {label: result[label] for label, _ in schema}
+    return result
 
 
 def parse_features(raw_text):
-    return parse_sections(raw_text, FEATURE_KEYS, prettify=False)
+    """Features keep all 8 keys even if empty (table layout depends on them)."""
+    parsed = parse_sections(raw_text, FEATURE_KEYS, prettify=False)
+    # For features, fill missing keys with em-dash so the UI table stays aligned
+    for label, _ in FEATURE_KEYS:
+        parsed.setdefault(label, "—")
+    return {label: parsed[label] for label, _ in FEATURE_KEYS}
 
 
 def parse_report(raw_text):
-    return parse_sections(raw_text, REPORT_KEYS, prettify=True)
+    """Report drops empty sections so the UI doesn't show hollow blocks."""
+    parsed = parse_sections(raw_text, REPORT_KEYS, prettify=True)
+    # Preserve schema order but only include keys that have real content
+    return {label: parsed[label] for label, _ in REPORT_KEYS if label in parsed and parsed[label]}
 
 
 # ==========================================================
