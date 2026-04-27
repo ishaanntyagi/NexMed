@@ -1,6 +1,6 @@
-
+===============================================================
 EMERGENCY DEPARTMENT ADMISSION & PROGRESS NOTE
-
+===============================================================
 
 PATIENT:        John M.
 AGE/SEX:        58 / Male
@@ -13,13 +13,13 @@ SOURCE:         Patient (alert), spouse (corroborating), prior chart
 
 ---------------------------------------------------------------
 CHIEF COMPLAINT
-
+---------------------------------------------------------------
 Substernal chest pain x 3 hours, radiating to left arm and jaw,
 associated with diaphoresis, nausea, and shortness of breath.
 
 ---------------------------------------------------------------
 HISTORY OF PRESENT ILLNESS
-
+---------------------------------------------------------------
 58-year-old male with known hypertension, type 2 diabetes mellitus,
 hyperlipidemia, paroxysmal atrial fibrillation, and obstructive sleep
 apnea presenting with acute-onset substernal chest pressure that began
@@ -42,7 +42,7 @@ prior to this episode.
 
 ---------------------------------------------------------------
 PAST MEDICAL HISTORY
-
+---------------------------------------------------------------
 - Essential hypertension (dx 2014, on multiple agents)
 - Type 2 diabetes mellitus (dx 2017, last HbA1c 7.8%)
 - Hyperlipidemia (dx 2015)
@@ -59,7 +59,7 @@ PAST SURGICAL HISTORY
 
 ---------------------------------------------------------------
 SOCIAL HISTORY
-
+---------------------------------------------------------------
 Former smoker, 30 pack-years, quit 2020 after father's MI death.
 Alcohol: 2-3 beers on weekends. No illicit drug use, no IV drug use.
 Occupation: truck dispatcher (sedentary, high stress).
@@ -69,7 +69,7 @@ Diet: high carbohydrate, low vegetable intake (per patient).
 
 ---------------------------------------------------------------
 FAMILY HISTORY
-
+---------------------------------------------------------------
 Father: fatal MI at age 55.
 Mother: CVA at age 62, currently with vascular dementia.
 Brother (61): CAD, s/p PCI 2021.
@@ -77,14 +77,14 @@ No known familial hyperlipidemia or arrhythmia syndromes.
 
 ---------------------------------------------------------------
 ALLERGIES
-
+---------------------------------------------------------------
 Penicillin — diffuse maculopapular rash (1998).
 Sulfa drugs — urticaria (2010).
 No known food, latex, or contrast allergies.
 
 ---------------------------------------------------------------
 HOME MEDICATIONS
-
+---------------------------------------------------------------
 - Lisinopril 20mg PO daily
 - Metformin 500mg PO twice daily with meals
 - Atorvastatin 40mg PO at bedtime
@@ -96,7 +96,7 @@ HOME MEDICATIONS
 
 ---------------------------------------------------------------
 VITAL SIGNS ON ED ARRIVAL (03:42)
-
+---------------------------------------------------------------
 Blood Pressure:    158/94 mmHg (right arm, sitting)
 Heart Rate:        102 bpm, irregular
 Temperature:       99.1 F (37.3 C), oral
@@ -109,7 +109,7 @@ BMI:               29.7 (overweight, borderline obese)
 
 ---------------------------------------------------------------
 PHYSICAL EXAMINATION
-
+---------------------------------------------------------------
 General:    Anxious, diaphoretic male in moderate distress.
             Alert and oriented x3.
 HEENT:      Atraumatic, normocephalic. Pupils equal, round,
@@ -134,7 +134,8 @@ Neuro:      Alert, oriented to person, place, time, situation.
             Cranial nerves II-XII intact. Motor strength 5/5
             throughout. Sensation intact. No focal deficits.
             Speech clear, fluent, no dysarthria.
-
+Skin:       Diaphoretic, otherwise warm and dry. No rashes,
+            lesions, or signs of poor perfusion.
 
 ---------------------------------------------------------------
 LABORATORY RESULTS (drawn 03:50, resulted 04:30)
@@ -185,6 +186,9 @@ CHEST X-RAY (PA and lateral, 04:00):
 - Mild pulmonary vascular congestion with cephalization
 - No focal consolidation, no infiltrate
 - No pneumothorax
+- Trachea midline. Mediastinum unremarkable.
+- Degenerative changes of thoracic spine
+- Old healed right rib fracture, lateral 8th rib
 
 ECG (12-lead, repeated at 03:50 and 05:15):
 - Atrial fibrillation with rapid ventricular response, rate ~108
@@ -192,7 +196,47 @@ ECG (12-lead, repeated at 03:50 and 05:15):
 - T wave inversions in V4 through V6
 - No acute ST elevation
 - No pathologic Q waves
+- QTc 442 ms (within normal limits)
+- Compared to prior ECG (2024): new ST depression and T wave
+  inversions, rate similar.
 
+BEDSIDE ECHOCARDIOGRAM (limited, 05:00):
+- Estimated LV ejection fraction 40–45% (moderately reduced)
+- Mild-to-moderate mitral regurgitation, eccentric jet
+- Hypokinesis of inferior wall and inferolateral segment
+- Normal LA size, mildly dilated LV
+- No pericardial effusion
+- No obvious thrombus visualized
+- IVC dilated with reduced respiratory variation
+
+---------------------------------------------------------------
+ASSESSMENT
+---------------------------------------------------------------
+1. Non-ST-elevation myocardial infarction (NSTEMI), inferior wall
+   territory, evidenced by elevated troponin, ECG changes, and
+   echocardiographic regional wall motion abnormality. TIMI risk
+   score 5 (high risk).
+
+2. Acute decompensated heart failure with reduced ejection
+   fraction (HFrEF, EF 40–45%), likely ischemia-driven.
+   Evidence of pulmonary congestion clinically and radiographically.
+
+3. Paroxysmal atrial fibrillation with rapid ventricular response.
+   Currently anticoagulated (INR 2.6, therapeutic).
+   CHA2DS2-VASc score 3, HAS-BLED score 2.
+
+4. Hypertension, poorly controlled on current regimen.
+   Will need optimization post-acute phase.
+
+5. Type 2 diabetes mellitus, currently with stress hyperglycemia.
+   Glucose 168 likely transient; HbA1c suggests poor baseline control.
+
+6. Hyperlipidemia, suboptimal LDL control.
+   Will intensify statin therapy.
+
+7. Obstructive sleep apnea — continue CPAP in-hospital.
+
+---------------------------------------------------------------
 PLAN
 ---------------------------------------------------------------
 DISPOSITION: Admit to Cardiac ICU.
@@ -216,9 +260,23 @@ Medications:
 - IV furosemide 40mg now for pulmonary congestion
 - Hold metformin 48 hrs around contrast administration
 
+Monitoring & Supportive:
+- NPO after midnight pending possible cath lab
+- Strict I/O monitoring
+- Daily weights
+- Continuous SpO2 monitoring, supplemental O2 to keep > 92%
+- Continue CPAP nightly
+
 Diabetes:
 - Sliding scale insulin while NPO
 - Resume metformin 48 hrs post-contrast if stable Cr
+
+Patient Education:
+- Discussed diagnosis, risks, planned procedure with patient and
+  spouse. Both verbalized understanding. Consent form signed.
+
+Code Status: FULL CODE.
+
 ===============================================================
 END OF NOTE
 Provider: Dr. S. Raman, MD — electronically signed 05:40

@@ -1,0 +1,74 @@
+{
+  "interactions": [
+    {
+      "drugs": ["aspirin", "warfarin"],
+      "severity": "high",
+      "reason": "Both increase bleeding risk. Concurrent use significantly raises risk of major hemorrhage including GI and intracranial bleeding."
+    },
+    {
+      "drugs": ["warfarin", "metformin"],
+      "severity": "low",
+      "reason": "Minor — metformin may slightly enhance warfarin effect. Monitor INR if starting/stopping."
+    },
+    {
+      "drugs": ["lisinopril", "metformin"],
+      "severity": "moderate",
+      "reason": "ACE inhibitors may enhance hypoglycemic effect of metformin. Monitor blood glucose."
+    },
+    {
+      "drugs": ["lisinopril", "aspirin"],
+      "severity": "moderate",
+      "reason": "Aspirin may reduce antihypertensive effect of lisinopril and increase risk of renal impairment."
+    },
+    {
+      "drugs": ["metoprolol", "metformin"],
+      "severity": "moderate",
+      "reason": "Beta-blockers can mask hypoglycemia symptoms in diabetic patients. Educate patient on alternative warning signs."
+    },
+    {
+      "drugs": ["atorvastatin", "warfarin"],
+      "severity": "moderate",
+      "reason": "Atorvastatin may increase warfarin effect. Monitor INR closely when initiating or adjusting statin dose."
+    },
+    {
+      "drugs": ["metoprolol", "nitroglycerin"],
+      "severity": "moderate",
+      "reason": "Additive hypotensive effect. Monitor blood pressure, especially with sublingual nitro use."
+    },
+    {
+      "drugs": ["lisinopril", "nitroglycerin"],
+      "severity": "moderate",
+      "reason": "Additive hypotensive effect. Risk of symptomatic hypotension."
+    },
+    {
+      "drugs": ["aspirin", "lisinopril"],
+      "severity": "moderate",
+      "reason": "NSAIDs reduce ACE inhibitor efficacy. May worsen renal function in elderly or volume-depleted patients."
+    },
+    {
+      "drugs": ["heparin", "warfarin"],
+      "severity": "high",
+      "reason": "Both anticoagulants. Bridging therapy intentional in ACS but requires careful INR + aPTT monitoring."
+    },
+    {
+      "drugs": ["heparin", "aspirin"],
+      "severity": "high",
+      "reason": "Significantly increased bleeding risk. Common in ACS protocols but requires close monitoring of platelets and Hgb."
+    },
+    {
+      "drugs": ["furosemide", "lisinopril"],
+      "severity": "moderate",
+      "reason": "Risk of hypotension and acute kidney injury, especially on initiation. Monitor BP, BUN, creatinine, electrolytes."
+    },
+    {
+      "drugs": ["furosemide", "metformin"],
+      "severity": "low",
+      "reason": "Diuretic may worsen renal function; reduced metformin clearance increases lactic acidosis risk in renal impairment."
+    },
+    {
+      "drugs": ["atorvastatin", "metoprolol"],
+      "severity": "low",
+      "reason": "Generally safe. Mild CYP interaction, clinically rarely significant."
+    }
+  ]
+}

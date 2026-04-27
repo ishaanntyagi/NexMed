@@ -1,0 +1,52 @@
+{
+  "nstemi": [
+    {"code": "I21.4", "description": "Non-ST elevation myocardial infarction"}
+  ],
+  "stemi": [
+    {"code": "I21.3", "description": "ST elevation myocardial infarction of unspecified site"}
+  ],
+  "myocardial infarction": [
+    {"code": "I21.9", "description": "Acute myocardial infarction, unspecified"}
+  ],
+  "acute coronary syndrome": [
+    {"code": "I24.9", "description": "Acute ischemic heart disease, unspecified"}
+  ],
+  "atrial fibrillation": [
+    {"code": "I48.0", "description": "Paroxysmal atrial fibrillation"},
+    {"code": "I48.91", "description": "Unspecified atrial fibrillation"}
+  ],
+  "heart failure": [
+    {"code": "I50.9", "description": "Heart failure, unspecified"},
+    {"code": "I50.22", "description": "Chronic systolic heart failure"},
+    {"code": "I50.21", "description": "Acute systolic heart failure"}
+  ],
+  "hypertension": [
+    {"code": "I10", "description": "Essential (primary) hypertension"}
+  ],
+  "type 2 diabetes": [
+    {"code": "E11.9", "description": "Type 2 diabetes mellitus without complications"},
+    {"code": "E11.65", "description": "Type 2 diabetes mellitus with hyperglycemia"}
+  ],
+  "hyperlipidemia": [
+    {"code": "E78.5", "description": "Hyperlipidemia, unspecified"}
+  ],
+  "chest pain": [
+    {"code": "R07.9", "description": "Chest pain, unspecified"},
+    {"code": "R07.89", "description": "Other chest pain"}
+  ],
+  "shortness of breath": [
+    {"code": "R06.02", "description": "Shortness of breath"}
+  ],
+  "pleural effusion": [
+    {"code": "J90", "description": "Pleural effusion, not elsewhere classified"}
+  ],
+  "cardiomegaly": [
+    {"code": "I51.7", "description": "Cardiomegaly"}
+  ],
+  "pulmonary edema": [
+    {"code": "J81.0", "description": "Acute pulmonary edema"}
+  ],
+  "obstructive sleep apnea": [
+    {"code": "G47.33", "description": "Obstructive sleep apnea"}
+  ]
+}

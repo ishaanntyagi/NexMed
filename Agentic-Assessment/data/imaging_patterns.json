@@ -1,0 +1,130 @@
+{
+  "cardiomegaly": {
+    "modality": "chest x-ray",
+    "likely_conditions": [
+      "congestive heart failure",
+      "dilated cardiomyopathy",
+      "pericardial effusion",
+      "valvular heart disease"
+    ],
+    "next_steps": ["echocardiogram", "BNP", "ECG"],
+    "urgency": "moderate"
+  },
+  "pleural effusion": {
+    "modality": "chest x-ray",
+    "likely_conditions": [
+      "congestive heart failure",
+      "pneumonia with parapneumonic effusion",
+      "malignancy",
+      "pulmonary embolism"
+    ],
+    "next_steps": ["thoracentesis if large", "CT chest", "echocardiogram"],
+    "urgency": "moderate"
+  },
+  "pulmonary congestion": {
+    "modality": "chest x-ray",
+    "likely_conditions": [
+      "acute decompensated heart failure",
+      "fluid overload",
+      "pulmonary edema"
+    ],
+    "next_steps": ["BNP", "diuretic therapy", "echocardiogram"],
+    "urgency": "high"
+  },
+  "consolidation": {
+    "modality": "chest x-ray",
+    "likely_conditions": [
+      "pneumonia",
+      "atelectasis",
+      "pulmonary infarction",
+      "lung mass"
+    ],
+    "next_steps": ["sputum culture", "CT chest", "antibiotic therapy if infectious"],
+    "urgency": "moderate"
+  },
+  "pneumothorax": {
+    "modality": "chest x-ray",
+    "likely_conditions": [
+      "spontaneous pneumothorax",
+      "traumatic pneumothorax",
+      "tension pneumothorax"
+    ],
+    "next_steps": ["chest tube if large or symptomatic", "serial imaging"],
+    "urgency": "high"
+  },
+  "st depression": {
+    "modality": "ecg",
+    "likely_conditions": [
+      "myocardial ischemia",
+      "NSTEMI",
+      "subendocardial infarction",
+      "digoxin effect"
+    ],
+    "next_steps": ["serial troponins", "cardiology consult", "consider catheterization"],
+    "urgency": "high"
+  },
+  "st elevation": {
+    "modality": "ecg",
+    "likely_conditions": [
+      "STEMI",
+      "pericarditis",
+      "early repolarization",
+      "left bundle branch block"
+    ],
+    "next_steps": ["urgent cath lab activation", "troponin", "aspirin + heparin"],
+    "urgency": "critical"
+  },
+  "t wave inversion": {
+    "modality": "ecg",
+    "likely_conditions": [
+      "myocardial ischemia",
+      "myocardial infarction (evolving)",
+      "left ventricular hypertrophy",
+      "pulmonary embolism"
+    ],
+    "next_steps": ["serial ECGs", "troponin", "echocardiogram"],
+    "urgency": "moderate"
+  },
+  "atrial fibrillation": {
+    "modality": "ecg",
+    "likely_conditions": [
+      "paroxysmal atrial fibrillation",
+      "persistent atrial fibrillation",
+      "thyrotoxicosis",
+      "cardiomyopathy"
+    ],
+    "next_steps": ["rate control", "anticoagulation per CHA2DS2-VASc", "TSH", "echo"],
+    "urgency": "moderate"
+  },
+  "reduced ejection fraction": {
+    "modality": "echocardiogram",
+    "likely_conditions": [
+      "heart failure with reduced ejection fraction (HFrEF)",
+      "ischemic cardiomyopathy",
+      "dilated cardiomyopathy"
+    ],
+    "next_steps": ["GDMT initiation", "ICD evaluation if EF <35%", "cardiac MRI"],
+    "urgency": "high"
+  },
+  "wall motion abnormality": {
+    "modality": "echocardiogram",
+    "likely_conditions": [
+      "myocardial infarction",
+      "ischemic heart disease",
+      "stress-induced cardiomyopathy"
+    ],
+    "next_steps": ["coronary angiography", "stress imaging if stable"],
+    "urgency": "high"
+  },
+  "mitral regurgitation": {
+    "modality": "echocardiogram",
+    "likely_conditions": [
+      "mitral valve prolapse",
+      "ischemic papillary muscle dysfunction",
+      "rheumatic heart disease",
+      "functional MR from LV dilation"
+    ],
+    "next_steps": ["serial echos", "cardiology consult", "consider valve repair if severe"],
+    "urgency": "moderate"
+  }
+}
