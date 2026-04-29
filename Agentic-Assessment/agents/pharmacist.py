@@ -48,11 +48,32 @@ Based on the medication list and interaction findings gathered, output ONLY vali
 
 Use only the data given. Do not invent interactions or warnings."""
 
+# === Stage 4 HITL: revision context block ===
+REVISION_BLOCK = """
+
+IMPORTANT — REVISION REQUEST:
+Your previous attempt was rejected by a human reviewer.
+Reviewer feedback: {feedback}
+Your previous output was:
+{previous_handoff}
+
+Read the feedback carefully. Produce a corrected handoff. Do not repeat the same mistakes."""
+
 MAX_TURNS = 4
 
 
-async def run_pharmacist(report: str, verbose: bool = True):
-    """Run Pharmacist agent. Returns handoff dict."""
+async def run_pharmacist(report: str, verbose: bool = True, revision_context: dict | None = None):
+    """Run Pharmacist agent. Returns handoff dict.
+
+    Stage 4: optional revision_context = {"feedback": str, "previous_handoff": dict}
+    """
+    system_prompt = SYSTEM_PROMPT
+    if revision_context:
+        system_prompt += REVISION_BLOCK.format(
+            feedback=revision_context.get("feedback", ""),
+            previous_handoff=json.dumps(revision_context.get("previous_handoff", {}), indent=2),
+        )
+
     server_params = StdioServerParameters(
         command="python", args=["mcp_server.py"]
     )
@@ -69,7 +90,7 @@ async def run_pharmacist(report: str, verbose: bool = True):
                 print(f"\n[Pharmacist] Loaded {len(tools)} tools\n")
 
             messages = [
-                {"role": "system", "content": SYSTEM_PROMPT},
+                {"role": "system", "content": system_prompt},
                 {"role": "user", "content": f"PATIENT REPORT:\n\n{report}"}
             ]
 
@@ -143,7 +164,14 @@ async def run_pharmacist(report: str, verbose: bool = True):
             if verbose:
                 print("[Pharmacist] Building handoff...\n")
 
-            raw = groq_complete(HANDOFF_PROMPT, handoff_input, model=GROQ_BIG)
+            handoff_prompt = HANDOFF_PROMPT
+            if revision_context:
+                handoff_prompt += REVISION_BLOCK.format(
+                    feedback=revision_context.get("feedback", ""),
+                    previous_handoff=json.dumps(revision_context.get("previous_handoff", {}), indent=2),
+                )
+
+            raw = groq_complete(handoff_prompt, handoff_input, model=GROQ_BIG)
             handoff = parse_json_safe(raw)
 
             if not isinstance(handoff, dict) or "from" not in handoff:

@@ -1,6 +1,8 @@
 """
 Physician agent: analyzes ED reports, calls tools, produces assessment.
 All Groq. Fast end-to-end.
+Stage 4: accepts prior_handoffs (any subset) + revision_context.
+Returns dict: {from, to, assessment, urgency, display_text}.
 """
 
 import asyncio
@@ -20,12 +22,12 @@ PHYSICIAN_TOOLS = [
 ]
 
 
-SYSTEM_PROMPT = """You are an experienced emergency medicine physician.
+SYSTEM_PROMPT_BASE = """You are an experienced emergency medicine physician.
 
-You have received reports from a Radiologist and a Pharmacist. Your job:
-- Read their handoffs carefully (provided in user message)
+Your job:
+- Read any specialist handoffs provided (some specialists may have been skipped — reason only over what is given)
 - Use your own tools to fill in clinical gaps (vitals, risk score, ICD codes)
-- Do NOT re-run imaging or medication tools — specialists already did that
+- Do NOT re-run imaging or medication tools — if a specialist handoff is present, trust it
 
 Tools available:
 - extract_vitals: get vitals
@@ -39,25 +41,64 @@ Do not write the final assessment yet. Just gather data."""
 
 SYNTHESIS_PROMPT = """You are an experienced emergency medicine physician writing a structured clinical assessment.
 
-You will receive: the original patient report, plus structured data already extracted by tools.
+You will receive: the original patient report, plus any specialist handoffs available, plus structured data extracted by tools.
 
 Write a concise assessment with these sections:
 - Primary Diagnosis
 - Differential Diagnoses (top 2-3)
 - Severity (low/medium/high) with reasoning
-- Drug Interaction Concerns
+- Drug Interaction Concerns (if pharmacist handoff present)
 - Recommended ICD-10 codes
 - Next Steps (3-5 items, evidence-based)
 
-Be concise. Use only the data given. Do not invent labs or treatments not supported by the data."""
+Be concise. Use only the data given. Do not invent labs, treatments, or specialist input that was not provided."""
+
+# === Stage 4 HITL: revision context block ===
+REVISION_BLOCK = """
+
+IMPORTANT — REVISION REQUEST:
+Your previous attempt was rejected by a human reviewer.
+Reviewer feedback: {feedback}
+Your previous assessment was:
+{previous_handoff}
+
+Read the feedback carefully. Produce a corrected assessment. Do not repeat the same mistakes."""
 
 MAX_TURNS = 8
 
 
-async def run_physician(report: str, verbose: bool = True):
+def _format_prior_handoffs(prior_handoffs: dict | None) -> str:
+    if not prior_handoffs:
+        return "No specialist handoffs available — reason directly from the patient report."
+    parts = ["SPECIALIST HANDOFFS:"]
+    for name, h in prior_handoffs.items():
+        parts.append(f"\n--- {name.upper()} ---\n{json.dumps(h, indent=2)}")
+    return "\n".join(parts)
+
+
+async def run_physician(
+    report: str,
+    verbose: bool = True,
+    prior_handoffs: dict | None = None,
+    revision_context: dict | None = None,
+):
     """
-    Run Physician agent on a report. Returns final assessment string.
+    Run Physician agent. Returns dict handoff.
+
+    Stage 4:
+      - prior_handoffs: dict of {agent_name: handoff_dict} from earlier specialists.
+        Any subset allowed (or empty/None).
+      - revision_context: {"feedback": str, "previous_handoff": dict} for Revise gate.
     """
+    system_prompt = SYSTEM_PROMPT_BASE
+    if revision_context:
+        system_prompt += REVISION_BLOCK.format(
+            feedback=revision_context.get("feedback", ""),
+            previous_handoff=json.dumps(revision_context.get("previous_handoff", {}), indent=2),
+        )
+
+    handoffs_block = _format_prior_handoffs(prior_handoffs)
+
     server_params = StdioServerParameters(
         command="python", args=["mcp_server.py"]
     )
@@ -74,8 +115,10 @@ async def run_physician(report: str, verbose: bool = True):
                 print(f"\n[Physician] Loaded {len(tools)} tools\n")
 
             messages = [
-                {"role": "system", "content": SYSTEM_PROMPT},
-                {"role": "user", "content": f"PATIENT REPORT:\n\n{report}"}
+                {"role": "system", "content": system_prompt},
+                {"role": "user", "content": (
+                    f"PATIENT REPORT:\n\n{report}\n\n{handoffs_block}"
+                )}
             ]
 
             groq_client = Groq(api_key=os.getenv("GROQ_API_KEY"))
@@ -84,7 +127,7 @@ async def run_physician(report: str, verbose: bool = True):
             # ---- TOOL CALLING LOOP ----
             for turn in range(MAX_TURNS):
                 if verbose:
-                    print(f"--- Turn {turn + 1} ---")
+                    print(f"--- [Physician] Turn {turn + 1} ---")
 
                 resp = groq_client.chat.completions.create(
                     model=GROQ_BIG,
@@ -97,7 +140,7 @@ async def run_physician(report: str, verbose: bool = True):
 
                 if not msg.tool_calls:
                     if verbose:
-                        print(f"[Physician] Tool gathering complete.\n")
+                        print("[Physician] Tool gathering complete.\n")
                     break
 
                 messages.append({
@@ -120,7 +163,7 @@ async def run_physician(report: str, verbose: bool = True):
                     args = json.loads(tc.function.arguments)
 
                     if verbose:
-                        print(f"[Physician] → calling {name}")
+                        print(f"[Physician] → {name}")
 
                     try:
                         result = await session.call_tool(name, args)
@@ -130,10 +173,6 @@ async def run_physician(report: str, verbose: bool = True):
 
                     tool_results.append({"tool": name, "result": result_text})
 
-                    if verbose:
-                        preview = result_text[:120].replace("\n", " ")
-                        print(f"[Physician] ← {preview}...\n")
-
                     messages.append({
                         "role": "tool",
                         "tool_call_id": tc.id,
@@ -141,21 +180,47 @@ async def run_physician(report: str, verbose: bool = True):
                         "content": result_text,
                     })
 
-            # ---- FINAL SYNTHESIS (Groq big) ----
-            if verbose:
-                print("[Physician] Synthesizing assessment...\n")
-
+            # ---- SYNTHESIS ----
             tool_summary = "\n\n".join(
                 f"### {t['tool']}\n{t['result']}" for t in tool_results
             )
-
             synthesis_input = (
                 f"PATIENT REPORT:\n{report}\n\n"
+                f"{handoffs_block}\n\n"
                 f"TOOL RESULTS:\n{tool_summary}"
             )
 
-            final = groq_complete(SYNTHESIS_PROMPT, synthesis_input, model=GROQ_BIG)
-            return final
+            if verbose:
+                print("[Physician] Writing assessment...\n")
+
+            synth_prompt = SYNTHESIS_PROMPT
+            if revision_context:
+                synth_prompt += REVISION_BLOCK.format(
+                    feedback=revision_context.get("feedback", ""),
+                    previous_handoff=json.dumps(revision_context.get("previous_handoff", {}), indent=2),
+                )
+
+            assessment_text = groq_complete(synth_prompt, synthesis_input, model=GROQ_BIG)
+
+            # === Stage 4: wrap as dict so all handoffs share shape ===
+            handoff = {
+                "from": "physician",
+                "to": "final",
+                "assessment": assessment_text,
+                "urgency": _guess_urgency(assessment_text),
+                "display_text": assessment_text[:300],
+            }
+            return handoff
+
+
+def _guess_urgency(text: str) -> str:
+    """Cheap heuristic for the urgency pill in UI. No LLM call."""
+    t = text.lower()
+    if any(k in t for k in ["high severity", "high risk", "critical", "emergent"]):
+        return "high"
+    if any(k in t for k in ["medium severity", "moderate", "concerning"]):
+        return "moderate"
+    return "low"
 
 
 async def _test():
@@ -163,9 +228,9 @@ async def _test():
     report = Path("sample_report.txt").read_text(encoding="utf-8")
     result = await run_physician(report)
     print("\n" + "=" * 60)
-    print("FINAL ASSESSMENT")
+    print("PHYSICIAN ASSESSMENT")
     print("=" * 60)
-    print(result)
+    print(json.dumps(result, indent=2))
 
 
 if __name__ == "__main__":
