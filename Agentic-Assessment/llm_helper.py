@@ -44,7 +44,7 @@ def groq_complete(system_prompt: str, user_prompt: str,
 
 # ============== Ollama (gemma4:e4b) ==============
 OLLAMA_URL = "http://localhost:11434/api/generate"
-OLLAMA_MODEL = "gemma4:e4b"
+OLLAMA_MODEL = "qwen3.5:4b"
 OLLAMA_KEEP_ALIVE = "2m"   # auto-unload after 2 min idle = saves RAM
 
 def ollama_complete(system_prompt: str, user_prompt: str,

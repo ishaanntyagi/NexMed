@@ -1,16 +1,14 @@
 """
-MCP server with 7 real medical tools.
-LLM tools: extract_vitals, extract_medications, extract_imaging_findings, compute_risk_score
-Lookup tools: lookup_icd_codes, check_drug_interactions, lookup_imaging_pattern
+MCP server with 7 medical tools.
+LLM tools all on Groq for speed/reliability.
 """
 
 import json
 from pathlib import Path
 from mcp.server.fastmcp import FastMCP
-from llm_helper import groq_complete, ollama_complete, parse_json_safe, GROQ_SMALL
+from llm_helper import groq_complete, parse_json_safe, GROQ_SMALL
 
 mcp = FastMCP("nexmed-tools")
-
 DATA_DIR = Path(__file__).parent / "data"
 
 
@@ -33,7 +31,7 @@ def extract_vitals(report: str) -> dict:
         f"temperature_f (float), respiratory_rate (int), oxygen_saturation (int). "
         f"Use null if missing.\n\nREPORT:\n{report}"
     )
-    raw = ollama_complete(system, user)
+    raw = groq_complete(system, user, model=GROQ_SMALL)
     return parse_json_safe(raw) or {"error": "extraction failed", "raw": raw[:200]}
 
 
@@ -70,10 +68,10 @@ def extract_imaging_findings(report: str) -> list:
         "Output ONLY valid JSON array. No explanation."
     )
     user = (
-        f"Extract findings. Return JSON array of objects with keys: "
-        f"modality (chest x-ray/ecg/echocardiogram/ct/mri), "
-        f"finding (short lowercase term like 'cardiomegaly' or 'st depression').\n\n"
-        f"REPORT:\n{report}"
+        f"Extract ALL findings as JSON ARRAY. "
+        f"Each item: {{modality (chest x-ray/ecg/echocardiogram/ct/mri), "
+        f"finding (short lowercase term like 'cardiomegaly' or 'st depression')}}. "
+        f"Return at minimum 5 items.\n\nREPORT:\n{report}"
     )
     raw = groq_complete(system, user, model=GROQ_SMALL)
     result = parse_json_safe(raw)
