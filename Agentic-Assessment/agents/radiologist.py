@@ -1,11 +1,14 @@
 """
 Radiologist agent: reads imaging/ECG findings, interprets patterns.
 Outputs structured handoff for next agent + display text for UI.
+Stage 4: revision_context kwarg.
+Stage 4.5: trace_cb kwarg captures tool calls, LLM messages, handoff events.
 """
 
 import asyncio
 import json
 import os
+import time
 from mcp import ClientSession, StdioServerParameters
 from mcp.client.stdio import stdio_client
 from groq import Groq
@@ -46,7 +49,6 @@ Based on the imaging findings and pattern lookups gathered, output ONLY valid JS
 
 Use only the data given. Do not invent findings."""
 
-# === Stage 4 HITL: revision context block ===
 REVISION_BLOCK = """
 
 IMPORTANT — REVISION REQUEST:
@@ -60,11 +62,22 @@ Read the feedback carefully. Produce a corrected handoff. Do not repeat the same
 MAX_TURNS = 6
 
 
-async def run_radiologist(report: str, verbose: bool = True, revision_context: dict | None = None):
+async def run_radiologist(
+    report: str,
+    verbose: bool = True,
+    revision_context: dict | None = None,
+    trace_cb=None,
+):
     """Run Radiologist agent. Returns handoff dict.
 
     Stage 4: optional revision_context = {"feedback": str, "previous_handoff": dict}
+    Stage 4.5: optional trace_cb(event_type: str, data: dict) — receives trace events live.
     """
+    # Stage 4.5: trace callback (no-op if not given)
+    def _trace(event_type: str, data: dict):
+        if trace_cb:
+            trace_cb(event_type, data)
+
     system_prompt = SYSTEM_PROMPT
     if revision_context:
         system_prompt += REVISION_BLOCK.format(
@@ -98,6 +111,7 @@ async def run_radiologist(report: str, verbose: bool = True, revision_context: d
             for turn in range(MAX_TURNS):
                 if verbose:
                     print(f"--- [Radiologist] Turn {turn + 1} ---")
+                _trace("turn_start", {"turn": turn + 1})
 
                 resp = groq_client.chat.completions.create(
                     model=GROQ_BIG,
@@ -109,9 +123,15 @@ async def run_radiologist(report: str, verbose: bool = True, revision_context: d
                 msg = resp.choices[0].message
 
                 if not msg.tool_calls:
+                    if msg.content:
+                        _trace("llm_message", {"role": "assistant", "content": msg.content})
                     if verbose:
                         print("[Radiologist] Tool gathering complete.\n")
                     break
+
+                # capture any reasoning text the model emitted alongside tool calls
+                if msg.content:
+                    _trace("llm_message", {"role": "assistant", "content": msg.content})
 
                 messages.append({
                     "role": "assistant",
@@ -135,11 +155,20 @@ async def run_radiologist(report: str, verbose: bool = True, revision_context: d
                     if verbose:
                         print(f"[Radiologist] → {name}")
 
+                    _trace("tool_call", {"tool": name, "args": args})
+                    _t0 = time.time()
+
                     try:
                         result = await session.call_tool(name, args)
                         result_text = result.content[0].text
                     except Exception as e:
                         result_text = json.dumps({"error": str(e)})
+
+                    _trace("tool_result", {
+                        "tool": name,
+                        "result": result_text,
+                        "duration_ms": int((time.time() - _t0) * 1000),
+                    })
 
                     tool_results.append({"tool": name, "result": result_text})
 
@@ -161,8 +190,8 @@ async def run_radiologist(report: str, verbose: bool = True, revision_context: d
 
             if verbose:
                 print("[Radiologist] Building handoff...\n")
+            _trace("handoff_start", {})
 
-            # === Stage 4: also append revision context to handoff prompt if present ===
             handoff_prompt = HANDOFF_PROMPT
             if revision_context:
                 handoff_prompt += REVISION_BLOCK.format(
@@ -183,6 +212,7 @@ async def run_radiologist(report: str, verbose: bool = True, revision_context: d
                     "display_text": raw[:300]
                 }
 
+            _trace("handoff_built", {"handoff": handoff})
             return handoff
 
 

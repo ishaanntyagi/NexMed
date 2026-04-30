@@ -1,5 +1,7 @@
 """
 Stage 4 HITL — workflow state persistence.
+Stage 4.5 — trace logging.
+Stage 5 — mode flag + routing plan storage.
 Pure functions. No LLM. No Flask. Just JSON on disk.
 """
 import json
@@ -17,19 +19,32 @@ def _path(workflow_id: str) -> Path:
     return RUNS_DIR / f"{workflow_id}.json"
 
 
-def create_run(report_text: str, selected_agents: list[str]) -> str:
-    """Create new workflow. Returns workflow_id."""
+def create_run(
+    report_text: str,
+    selected_agents: list[str],
+    mode: str = "manual",
+) -> str:
+    """
+    Create new workflow.
+    mode: "manual" → run selected_agents in order (Stage 4 behavior).
+          "auto"   → ignore selected_agents, run routing first, specialists picked by physician.
+    Returns workflow_id.
+    """
     workflow_id = str(uuid.uuid4())[:8]
     state = {
         "workflow_id": workflow_id,
         "created_at": datetime.utcnow().isoformat(),
         "report_text": report_text,
+        "mode": mode,
         "selected_agents": selected_agents,
         "current_index": 0,
         "status": "awaiting_human",
         "handoffs": {},
         "human_actions": [],
-        "revise_count": {a: 0 for a in selected_agents},
+        "revise_count": {a: 0 for a in selected_agents + ["physician_routing"]},
+        "traces": {a: [] for a in selected_agents + ["physician_routing"]},
+        "routing_plan": None,
+        "routing_approved": False,
         "final_synthesis": None,
     }
     save_state(state)
@@ -98,4 +113,53 @@ def reject(state: dict) -> None:
 def complete(state: dict, synthesis: dict) -> None:
     state["final_synthesis"] = synthesis
     state["status"] = "complete"
+    save_state(state)
+
+
+# ===== Stage 4.5: trace logging =====
+
+def append_trace(state: dict, agent: str, event_type: str, data: dict) -> None:
+    """Append one trace event for `agent`. Persists state."""
+    if agent not in state.get("traces", {}):
+        state.setdefault("traces", {})[agent] = []
+    state["traces"][agent].append({
+        "ts": datetime.utcnow().isoformat(),
+        "type": event_type,
+        "data": data,
+    })
+    save_state(state)
+
+
+def reset_trace(state: dict, agent: str) -> None:
+    """Wipe trace for an agent before re-running (used on Revise)."""
+    state.setdefault("traces", {})[agent] = []
+    save_state(state)
+
+
+# ===== Stage 5: routing =====
+
+def store_routing_plan(state: dict, plan: dict, approved: bool = False) -> None:
+    state["routing_plan"] = plan
+    state["routing_approved"] = approved
+    save_state(state)
+
+
+def apply_routing_to_selection(state: dict) -> None:
+    """
+    Translate the approved routing plan into selected_agents.
+    Called after the routing gate clears.
+    """
+    plan = state.get("routing_plan") or {}
+    agents = []
+    if plan.get("need_radiologist"):
+        agents.append("radiologist")
+    if plan.get("need_pharmacist"):
+        agents.append("pharmacist")
+    agents.append("physician")  # always runs final synthesis
+
+    state["selected_agents"] = agents
+    state["current_index"] = 0
+    for a in agents:
+        state["traces"].setdefault(a, [])
+        state["revise_count"].setdefault(a, 0)
     save_state(state)

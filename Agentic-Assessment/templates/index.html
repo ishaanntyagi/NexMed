@@ -1,0 +1,197 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>NexMed AI · Agentic Assessment</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;600;700;800&family=DM+Mono:wght@300;400;500&display=swap" rel="stylesheet">
+    <script src="https://unpkg.com/lucide@latest"></script>
+</head>
+<body>
+
+    <div class="noise-overlay"></div>
+
+    <div class="app">
+
+        <!-- ═══ SIDEBAR ═══ -->
+        <aside class="sidebar">
+            <div class="sidebar-brand">
+                <div class="brand-mark">NX</div>
+                <div class="brand-text">
+                    <span class="brand-name">NexMed<span class="brand-ai">AI</span></span>
+                    <span class="brand-sub">Agentic Assessment</span>
+                </div>
+            </div>
+
+            <div class="sidebar-section">
+                <span class="sidebar-label">Workflow</span>
+                <button class="sidebar-btn is-primary" id="newRunBtn">
+                    <i data-lucide="play"></i>
+                    New Assessment
+                </button>
+            </div>
+
+            <div class="sidebar-section">
+                <span class="sidebar-label">Mode</span>
+                <div class="mode-toggle">
+                    <button class="mode-btn is-active" data-mode="auto">
+                        <i data-lucide="sparkles"></i>
+                        Auto
+                    </button>
+                    <button class="mode-btn" data-mode="manual">
+                        <i data-lucide="hand"></i>
+                        Manual
+                    </button>
+                </div>
+                <span class="mode-help" id="modeHelp">
+                    Physician decides which specialists to consult.
+                </span>
+            </div>
+
+            <div class="sidebar-section" id="manualAgentsSection" style="display:none;">
+                <span class="sidebar-label">Specialists</span>
+                <label class="agent-check">
+                    <input type="checkbox" value="radiologist" checked> Radiologist
+                </label>
+                <label class="agent-check">
+                    <input type="checkbox" value="pharmacist" checked> Pharmacist
+                </label>
+                <label class="agent-check">
+                    <input type="checkbox" value="physician" checked> Physician
+                </label>
+            </div>
+
+            <div style="flex: 1;"></div>
+
+            <div class="sidebar-section">
+                <span class="sidebar-label">Workflow ID</span>
+                <span class="workflow-id" id="workflowIdDisplay">—</span>
+            </div>
+
+            <div class="sidebar-section">
+                <span class="sidebar-label">Status</span>
+                <div class="context-badge" id="statusBadge">
+                    <i data-lucide="circle"></i>
+                    IDLE
+                </div>
+            </div>
+        </aside>
+
+        <!-- ═══ MAIN ═══ -->
+        <main class="main">
+
+            <div class="topbar">
+                <div class="topbar-title">
+                    <span class="topbar-h">Agentic Clinical Assessment</span>
+                    <span class="topbar-sub">Multi-agent · MCP tools · Human-in-the-loop</span>
+                </div>
+                <div class="topbar-right">
+                    <span class="status-pill" id="topStatusPill">
+                        <span class="status-dot"></span>
+                        <span class="status-label">READY</span>
+                    </span>
+                </div>
+            </div>
+
+            <div class="main-scroll">
+
+                <!-- INTAKE -->
+                <section class="card" id="intakeCard">
+                    <div class="card-head">
+                        <i data-lucide="file-text"></i>
+                        <span class="card-h">Patient Report</span>
+                    </div>
+                    <div class="card-body">
+                        <p class="card-help">
+                            Paste the clinical report. The agentic workflow will route it to the appropriate specialists, capture every tool call and reasoning step, and pause at each gate for your review.
+                        </p>
+                        <textarea
+                            id="reportInput"
+                            class="report-input"
+                            rows="10"
+                            placeholder="e.g. 67yo M, ED admission for chest pain. ECG: ST depression in leads II/III/aVF, atrial fibrillation. Chest x-ray: cardiomegaly, mild pulmonary vascular congestion. Meds: aspirin 81mg daily, warfarin 5mg daily, metoprolol 50mg BID, atorvastatin 40mg, lisinopril 10mg, metformin 500mg BID. Vitals: BP 162/94, HR 108, SpO2 94%, RR 22, Temp 98.6°F."
+                        ></textarea>
+                        <div class="card-actions">
+                            <button class="btn-primary" id="startBtn">
+                                <i data-lucide="play-circle"></i>
+                                Start Assessment
+                            </button>
+                        </div>
+                    </div>
+                </section>
+
+                <!-- ROUTING (auto mode) -->
+                <section class="card hidden" id="routingCard">
+                    <div class="card-head">
+                        <i data-lucide="git-branch"></i>
+                        <span class="card-h">Physician · Routing Decision</span>
+                        <span class="agent-status" id="routingStatus">PENDING</span>
+                    </div>
+                    <div class="card-body" id="routingBody">
+                        <!-- filled by JS -->
+                    </div>
+                </section>
+
+                <!-- AGENTS LANE -->
+                <section id="agentsLane">
+                    <!-- agent cards rendered here by JS -->
+                </section>
+
+                <!-- FINAL SYNTHESIS -->
+                <section class="card hidden" id="synthesisCard">
+                    <div class="card-head">
+                        <i data-lucide="check-circle"></i>
+                        <span class="card-h">Final Clinical Assessment</span>
+                        <span class="agent-status is-done">COMPLETE</span>
+                    </div>
+                    <div class="card-body" id="synthesisBody">
+                        <!-- filled by JS -->
+                    </div>
+                </section>
+
+            </div>
+        </main>
+    </div>
+
+    <!-- Edit modal -->
+    <div class="modal-backdrop hidden" id="editModal">
+        <div class="modal">
+            <div class="modal-head">
+                <span>Edit Handoff</span>
+                <button class="modal-close" id="editModalClose">×</button>
+            </div>
+            <div class="modal-body">
+                <p class="modal-help">Edit the JSON below. Must be valid JSON.</p>
+                <textarea id="editTextarea" rows="18"></textarea>
+                <div class="modal-actions">
+                    <button class="btn-ghost" id="editCancel">Cancel</button>
+                    <button class="btn-primary" id="editSubmit">Save & Continue</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Revise modal -->
+    <div class="modal-backdrop hidden" id="reviseModal">
+        <div class="modal">
+            <div class="modal-head">
+                <span>Send Feedback to Agent</span>
+                <button class="modal-close" id="reviseModalClose">×</button>
+            </div>
+            <div class="modal-body">
+                <p class="modal-help">The agent will re-run with this feedback injected into its prompt.</p>
+                <textarea id="reviseTextarea" rows="6" placeholder="e.g. You missed the cardiomegaly finding. Re-examine the chest x-ray section."></textarea>
+                <div class="modal-actions">
+                    <button class="btn-ghost" id="reviseCancel">Cancel</button>
+                    <button class="btn-primary" id="reviseSubmit">Send & Re-run</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="{{ url_for('static', filename='script.js') }}"></script>
+    <script>lucide.createIcons();</script>
+</body>
+</html>

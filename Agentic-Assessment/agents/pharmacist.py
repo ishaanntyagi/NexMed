@@ -1,11 +1,14 @@
 """
 Pharmacist agent: reviews medications, flags drug interactions.
 Outputs structured handoff for physician.
+Stage 4: revision_context kwarg.
+Stage 4.5: trace_cb kwarg captures tool calls, LLM messages, handoff events.
 """
 
 import asyncio
 import json
 import os
+import time
 from mcp import ClientSession, StdioServerParameters
 from mcp.client.stdio import stdio_client
 from groq import Groq
@@ -48,7 +51,6 @@ Based on the medication list and interaction findings gathered, output ONLY vali
 
 Use only the data given. Do not invent interactions or warnings."""
 
-# === Stage 4 HITL: revision context block ===
 REVISION_BLOCK = """
 
 IMPORTANT — REVISION REQUEST:
@@ -62,11 +64,21 @@ Read the feedback carefully. Produce a corrected handoff. Do not repeat the same
 MAX_TURNS = 4
 
 
-async def run_pharmacist(report: str, verbose: bool = True, revision_context: dict | None = None):
+async def run_pharmacist(
+    report: str,
+    verbose: bool = True,
+    revision_context: dict | None = None,
+    trace_cb=None,
+):
     """Run Pharmacist agent. Returns handoff dict.
 
     Stage 4: optional revision_context = {"feedback": str, "previous_handoff": dict}
+    Stage 4.5: optional trace_cb(event_type: str, data: dict) — receives trace events live.
     """
+    def _trace(event_type: str, data: dict):
+        if trace_cb:
+            trace_cb(event_type, data)
+
     system_prompt = SYSTEM_PROMPT
     if revision_context:
         system_prompt += REVISION_BLOCK.format(
@@ -100,6 +112,7 @@ async def run_pharmacist(report: str, verbose: bool = True, revision_context: di
             for turn in range(MAX_TURNS):
                 if verbose:
                     print(f"--- [Pharmacist] Turn {turn + 1} ---")
+                _trace("turn_start", {"turn": turn + 1})
 
                 resp = groq_client.chat.completions.create(
                     model=GROQ_BIG,
@@ -111,9 +124,14 @@ async def run_pharmacist(report: str, verbose: bool = True, revision_context: di
                 msg = resp.choices[0].message
 
                 if not msg.tool_calls:
+                    if msg.content:
+                        _trace("llm_message", {"role": "assistant", "content": msg.content})
                     if verbose:
                         print("[Pharmacist] Tool gathering complete.\n")
                     break
+
+                if msg.content:
+                    _trace("llm_message", {"role": "assistant", "content": msg.content})
 
                 messages.append({
                     "role": "assistant",
@@ -137,11 +155,20 @@ async def run_pharmacist(report: str, verbose: bool = True, revision_context: di
                     if verbose:
                         print(f"[Pharmacist] → {name}")
 
+                    _trace("tool_call", {"tool": name, "args": args})
+                    _t0 = time.time()
+
                     try:
                         result = await session.call_tool(name, args)
                         result_text = result.content[0].text
                     except Exception as e:
                         result_text = json.dumps({"error": str(e)})
+
+                    _trace("tool_result", {
+                        "tool": name,
+                        "result": result_text,
+                        "duration_ms": int((time.time() - _t0) * 1000),
+                    })
 
                     tool_results.append({"tool": name, "result": result_text})
 
@@ -163,6 +190,7 @@ async def run_pharmacist(report: str, verbose: bool = True, revision_context: di
 
             if verbose:
                 print("[Pharmacist] Building handoff...\n")
+            _trace("handoff_start", {})
 
             handoff_prompt = HANDOFF_PROMPT
             if revision_context:
@@ -186,6 +214,7 @@ async def run_pharmacist(report: str, verbose: bool = True, revision_context: di
                     "display_text": raw[:300]
                 }
 
+            _trace("handoff_built", {"handoff": handoff})
             return handoff
 
 

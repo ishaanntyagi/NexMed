@@ -1,18 +1,20 @@
 """
 Physician agent: analyzes ED reports, calls tools, produces assessment.
-All Groq. Fast end-to-end.
-Stage 4: accepts prior_handoffs (any subset) + revision_context.
+Stage 4: prior_handoffs (any subset) + revision_context.
+Stage 4.5: trace_cb captures tool calls, LLM messages, synthesis events.
+Stage 5: run_physician_routing — phase-1 router that decides which specialists to consult.
 Returns dict: {from, to, assessment, urgency, display_text}.
 """
 
 import asyncio
 import json
 import os
+import time
 from mcp import ClientSession, StdioServerParameters
 from mcp.client.stdio import stdio_client
 from groq import Groq
 
-from llm_helper import groq_complete, GROQ_BIG
+from llm_helper import groq_complete, GROQ_BIG, parse_json_safe
 from agents.tool_bridge import mcp_to_groq_tools, filter_tools
 
 PHYSICIAN_TOOLS = [
@@ -53,7 +55,6 @@ Write a concise assessment with these sections:
 
 Be concise. Use only the data given. Do not invent labs, treatments, or specialist input that was not provided."""
 
-# === Stage 4 HITL: revision context block ===
 REVISION_BLOCK = """
 
 IMPORTANT — REVISION REQUEST:
@@ -81,15 +82,21 @@ async def run_physician(
     verbose: bool = True,
     prior_handoffs: dict | None = None,
     revision_context: dict | None = None,
+    trace_cb=None,
 ):
     """
     Run Physician agent. Returns dict handoff.
 
     Stage 4:
       - prior_handoffs: dict of {agent_name: handoff_dict} from earlier specialists.
-        Any subset allowed (or empty/None).
       - revision_context: {"feedback": str, "previous_handoff": dict} for Revise gate.
+    Stage 4.5:
+      - trace_cb(event_type: str, data: dict) — receives trace events live.
     """
+    def _trace(event_type: str, data: dict):
+        if trace_cb:
+            trace_cb(event_type, data)
+
     system_prompt = SYSTEM_PROMPT_BASE
     if revision_context:
         system_prompt += REVISION_BLOCK.format(
@@ -124,10 +131,10 @@ async def run_physician(
             groq_client = Groq(api_key=os.getenv("GROQ_API_KEY"))
             tool_results = []
 
-            # ---- TOOL CALLING LOOP ----
             for turn in range(MAX_TURNS):
                 if verbose:
                     print(f"--- [Physician] Turn {turn + 1} ---")
+                _trace("turn_start", {"turn": turn + 1})
 
                 resp = groq_client.chat.completions.create(
                     model=GROQ_BIG,
@@ -139,9 +146,14 @@ async def run_physician(
                 msg = resp.choices[0].message
 
                 if not msg.tool_calls:
+                    if msg.content:
+                        _trace("llm_message", {"role": "assistant", "content": msg.content})
                     if verbose:
                         print("[Physician] Tool gathering complete.\n")
                     break
+
+                if msg.content:
+                    _trace("llm_message", {"role": "assistant", "content": msg.content})
 
                 messages.append({
                     "role": "assistant",
@@ -165,11 +177,20 @@ async def run_physician(
                     if verbose:
                         print(f"[Physician] → {name}")
 
+                    _trace("tool_call", {"tool": name, "args": args})
+                    _t0 = time.time()
+
                     try:
                         result = await session.call_tool(name, args)
                         result_text = result.content[0].text
                     except Exception as e:
                         result_text = json.dumps({"error": str(e)})
+
+                    _trace("tool_result", {
+                        "tool": name,
+                        "result": result_text,
+                        "duration_ms": int((time.time() - _t0) * 1000),
+                    })
 
                     tool_results.append({"tool": name, "result": result_text})
 
@@ -192,6 +213,7 @@ async def run_physician(
 
             if verbose:
                 print("[Physician] Writing assessment...\n")
+            _trace("synthesis_start", {})
 
             synth_prompt = SYNTHESIS_PROMPT
             if revision_context:
@@ -202,7 +224,6 @@ async def run_physician(
 
             assessment_text = groq_complete(synth_prompt, synthesis_input, model=GROQ_BIG)
 
-            # === Stage 4: wrap as dict so all handoffs share shape ===
             handoff = {
                 "from": "physician",
                 "to": "final",
@@ -210,6 +231,12 @@ async def run_physician(
                 "urgency": _guess_urgency(assessment_text),
                 "display_text": assessment_text[:300],
             }
+
+            _trace("synthesis_built", {
+                "assessment": assessment_text,
+                "urgency": handoff["urgency"],
+            })
+            _trace("handoff_built", {"handoff": handoff})
             return handoff
 
 
@@ -221,6 +248,87 @@ def _guess_urgency(text: str) -> str:
     if any(k in t for k in ["medium severity", "moderate", "concerning"]):
         return "moderate"
     return "low"
+
+
+# ============================================================
+# Stage 5: Routing phase — Physician as router/planner.
+# Lightweight call, no MCP tools, outputs a JSON plan.
+# ============================================================
+
+ROUTING_PROMPT = """You are an experienced emergency medicine physician triaging a new patient report.
+
+Your job RIGHT NOW is NOT to diagnose. Your job is to decide which specialists to consult.
+
+Available specialists:
+- Radiologist: reviews imaging studies (X-ray, CT, MRI, echo) and ECG findings.
+- Pharmacist: reviews medication list and flags drug-drug interactions.
+
+Read the report. Decide which specialists are needed. Be conservative — only request a specialist if the report contains material relevant to their scope. If a specialist has nothing to work with (e.g. no medications listed → skip pharmacist), do not request them.
+
+Output ONLY valid JSON in this exact shape:
+
+{
+  "need_radiologist": true | false,
+  "need_pharmacist": true | false,
+  "reasoning": "1-2 sentences explaining your routing decision, citing specific report content.",
+  "confidence": "high" | "medium" | "low"
+}
+
+No other output. No markdown fences. No commentary."""
+
+
+async def run_physician_routing(
+    report: str,
+    verbose: bool = True,
+    revision_context: dict | None = None,
+    trace_cb=None,
+) -> dict:
+    """
+    Stage 5: Phase-1 Physician routing decision.
+    No MCP tools. Single LLM call. Returns routing plan dict.
+    """
+    def _trace(event_type: str, data: dict):
+        if trace_cb:
+            trace_cb(event_type, data)
+
+    routing_prompt = ROUTING_PROMPT
+    if revision_context:
+        routing_prompt += REVISION_BLOCK.format(
+            feedback=revision_context.get("feedback", ""),
+            previous_handoff=json.dumps(revision_context.get("previous_handoff", {}), indent=2),
+        )
+
+    if verbose:
+        print("\n[Physician-Router] Analyzing report to plan specialists...\n")
+
+    _trace("routing_start", {})
+
+    raw = groq_complete(
+        routing_prompt,
+        f"PATIENT REPORT:\n\n{report}",
+        model=GROQ_BIG,
+    )
+
+    plan = parse_json_safe(raw)
+
+    if not isinstance(plan, dict) or "need_radiologist" not in plan:
+        plan = {
+            "need_radiologist": True,
+            "need_pharmacist": True,
+            "reasoning": f"Routing parse failed — defaulting to full workup. Raw: {raw[:200]}",
+            "confidence": "low",
+        }
+
+    plan["need_radiologist"] = bool(plan.get("need_radiologist"))
+    plan["need_pharmacist"] = bool(plan.get("need_pharmacist"))
+    plan.setdefault("reasoning", "")
+    plan.setdefault("confidence", "medium")
+
+    if verbose:
+        print(f"[Physician-Router] Plan: {json.dumps(plan, indent=2)}\n")
+
+    _trace("routing_built", {"plan": plan})
+    return plan
 
 
 async def _test():
